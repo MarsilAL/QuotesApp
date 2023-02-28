@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { StatusBar } from "expo-status-bar";
-import { Pressable, StyleSheet, View, Text } from "react-native";
+import { StyleSheet, View, Text } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import Quote from "./components/Quote";
 import AddQuote from "./components/AddQuote";
@@ -32,6 +33,9 @@ export default function App() {
   const [index, setIndex] = useState(0);
   const [quotesList, setQuotesList] = useState(quotes);
   const [showAddQuote, setshowAddQuote] = useState(false);
+  useEffect(() => {
+    loadQuotes();
+  }, []);
 
   const quote = quotesList[index];
 
@@ -43,6 +47,19 @@ export default function App() {
     const newQuotes = [...quotesList, { text: quoteText, author: name }];
     setQuotesList(newQuotes);
     setIndex(newQuotes.length - 1);
+    saveQuotes(newQuotes);
+  }
+
+  function saveQuotes(newQuotes) {
+    AsyncStorage.setItem("QUOTES", JSON.stringify(newQuotes));
+  }
+
+  async function loadQuotes() {
+    let quotesFromAS = await AsyncStorage.getItem("QUOTES");
+    if (quotesFromAS !== null) {
+      quotesFromAS = JSON.parse(quotesFromAS);
+      setQuotesList(quotesFromAS);
+    }
   }
 
   return (
