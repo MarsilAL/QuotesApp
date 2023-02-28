@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { StatusBar } from "expo-status-bar";
 import { StyleSheet, View, Alert } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as SQLite from "expo-sqlite";
 
 import Quote from "./components/Quote";
 import AddQuote from "./components/AddQuote";
@@ -9,29 +9,43 @@ import PrimaryButton from "./components/PrimaryButton";
 import PrimaryIconButton from "./components/PrimaryIconButton";
 import NoQuote from "./components/NoQuotes";
 
+const database = SQLite.openDatabase("quotesAppData.db");
+
 export default function App() {
   // States
   const [index, setIndex] = useState(0);
   const [quotesList, setQuotesList] = useState([]);
   const [showAddQuote, setshowAddQuote] = useState(false);
   useEffect(() => {
+    initDB();
     loadQuotes();
   }, []);
+
+  function initDB() {
+    database.transaction((tx) =>
+      tx.executeSql(
+        "CREATE TABLE IF NOT EXISTS quotes (id INTEGER PRIMARY KEY NOT NULL, text TEXT, author TEXT);"
+      )
+    );
+  }
 
   function addQuoteToList(quoteText, name) {
     setshowAddQuote(false);
     const newQuotes = [...quotesList, { text: quoteText, author: name }];
     setQuotesList(newQuotes);
     setIndex(newQuotes.length - 1);
-    saveQuotes(newQuotes);
+    saveQuotes(quoteText, name, newQuotes);
   }
 
   function deleteQuoteFromList() {
     const newQuotes = [...quotesList];
+    const id = quotesList[index].id;
     newQuotes.splice(index, 1);
     setIndex(0);
     setQuotesList(newQuotes);
-    saveQuotes(newQuotes);
+    database.transaction((tx) =>
+      tx.executeSql("DELETE FROM quotes WHERE id=?", [id])
+    );
   }
 
   function confirmDeletion() {
@@ -45,16 +59,25 @@ export default function App() {
     ]);
   }
 
-  function saveQuotes(newQuotes) {
-    AsyncStorage.setItem("QUOTES", JSON.stringify(newQuotes));
+  function saveQuotes(quoteText, name, newQuotes) {
+    database.transaction((tx) =>
+      tx.executeSql(
+        "INSERT INTO quotes (text,author) VALUES(?,?)",
+        [quoteText, name],
+        (_, result) => {
+          newQuotes[newQuotes.length - 1].id = result.insertId;
+          setQuotesList(newQuotes);
+        }
+      )
+    );
   }
 
   async function loadQuotes() {
-    let quotesFromAS = await AsyncStorage.getItem("QUOTES");
-    if (quotesFromAS !== null) {
-      quotesFromAS = JSON.parse(quotesFromAS);
-      setQuotesList(quotesFromAS);
-    }
+    database.transaction((tx) =>
+      tx.executeSql("SELECT * FROM quotes", [], (_, result) => {
+        setQuotesList(result.rows._array);
+      })
+    );
   }
 
   let content = <NoQuote />;
