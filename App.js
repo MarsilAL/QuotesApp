@@ -1,46 +1,22 @@
 import { useState, useEffect } from "react";
 import { StatusBar } from "expo-status-bar";
-import { StyleSheet, View, Text } from "react-native";
+import { StyleSheet, View, Alert } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 import Quote from "./components/Quote";
 import AddQuote from "./components/AddQuote";
 import PrimaryButton from "./components/PrimaryButton";
 import PrimaryIconButton from "./components/PrimaryIconButton";
-
-const quotes = [
-  {
-    text: "Be yourself; everyone else is already taken.",
-    author: "Oscar Wilde",
-  },
-  {
-    text: "Two things are infinite: the universe and human stupidity; and I'm not sure about the universe.",
-    author: "Albert Einstein",
-  },
-  { text: "So many books, so little time.", author: "Frank Zappa" },
-  {
-    text: "A room without books is like a body without a soul.",
-    author: "Marcus Tullius Cicero",
-  },
-  {
-    text: "Be who you are and say what you feel, because those who mind don't matter, and those who matter don't mind.",
-    author: "Bernard M. Baruch",
-  },
-];
+import NoQuote from "./components/NoQuotes";
 
 export default function App() {
   // States
   const [index, setIndex] = useState(0);
-  const [quotesList, setQuotesList] = useState(quotes);
+  const [quotesList, setQuotesList] = useState([]);
   const [showAddQuote, setshowAddQuote] = useState(false);
   useEffect(() => {
     loadQuotes();
   }, []);
-
-  const quote = quotesList[index];
-
-  let prevIndex = index - 1;
-  if (prevIndex < 0) prevIndex = quotes.length - 1;
 
   function addQuoteToList(quoteText, name) {
     setshowAddQuote(false);
@@ -48,6 +24,25 @@ export default function App() {
     setQuotesList(newQuotes);
     setIndex(newQuotes.length - 1);
     saveQuotes(newQuotes);
+  }
+
+  function deleteQuoteFromList() {
+    const newQuotes = [...quotesList];
+    newQuotes.splice(index, 1);
+    setIndex(0);
+    setQuotesList(newQuotes);
+    saveQuotes(newQuotes);
+  }
+
+  function confirmDeletion() {
+    Alert.alert("Zitat löchecn", "Soll das Zitat wirklich gelöcht werden?", [
+      { text: "Abbrechen", style: "cancel" },
+      {
+        text: "Bestätigen",
+        style: "destructive",
+        onPress: deleteQuoteFromList,
+      },
+    ]);
   }
 
   function saveQuotes(newQuotes) {
@@ -62,8 +57,22 @@ export default function App() {
     }
   }
 
+  let content = <NoQuote />;
+  if (quotesList.length > 0) {
+    const quote = quotesList[index];
+    content = <Quote body={quote} />;
+  }
+
   return (
     <View style={styles.container}>
+      {quotesList.length === 0 ? null : (
+        <PrimaryIconButton
+          icon={"delete"}
+          onPress={() => confirmDeletion()}
+          style={styles.deleteQuote}
+        />
+      )}
+
       <PrimaryIconButton
         icon={"add-circle"}
         onPress={() => setshowAddQuote(true)}
@@ -76,13 +85,15 @@ export default function App() {
         onSave={addQuoteToList}
       />
 
-      <Quote body={quote} />
+      {content}
 
-      <PrimaryButton
-        title="Nächstes Zitat"
-        onPress={() => setIndex((index + 1) % quotesList.length)}
-        style={styles.next}
-      />
+      {quotesList.length < 2 ? null : (
+        <PrimaryButton
+          title="Nächstes Zitat"
+          onPress={() => setIndex((index + 1) % quotesList.length)}
+          style={styles.next}
+        />
+      )}
 
       <StatusBar style="auto" />
     </View>
@@ -100,6 +111,11 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 50,
     right: 20,
+  },
+  deleteQuote: {
+    position: "absolute",
+    top: 50,
+    left: 20,
   },
   next: {
     position: "absolute",
